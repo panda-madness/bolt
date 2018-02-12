@@ -28,8 +28,8 @@ class General extends AsyncBase
         $c->get('/', 'async')
             ->bind('async');
 
-        $c->get('/changelog/{contenttypeslug}/{contentid}', 'changeLogRecord')
-            ->value('contenttypeslug', '')
+        $c->get('/changelog/{contenttype}/{contentid}', 'changeLogRecord')
+            ->value('contenttype', '')
             ->value('contentid', '0')
             ->bind('changelogrecord');
 
@@ -104,9 +104,9 @@ class General extends AsyncBase
      *
      * @return \Bolt\Response\TemplateResponse
      */
-    public function changeLogRecord($contenttypeslug, $contentid)
+    public function changeLogRecord($contenttype, $contentid)
     {
-        $contenttype = $this->getContentType($contenttypeslug);
+        $contenttype = $this->getContentType($contenttype);
 
         $options = [
             'contentid' => $contentid,
@@ -120,7 +120,7 @@ class General extends AsyncBase
 
         $context = [
             'contenttype' => $contenttype,
-            'entries'     => $repo->getChangeLogByContentType($contenttypeslug, $options),
+            'entries'     => $repo->getChangeLogByContentType($contenttype['slug'], $options),
         ];
 
         return $this->render('@bolt/components/panel-change-record.twig', ['context' => $context]);

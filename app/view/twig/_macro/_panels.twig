@@ -36,6 +36,6 @@
  #}
 {% macro changes(contenttype_slug, content_id) %}
     {% if config.get('general/changelog/enabled', true) %}
-        {{ render(path('changelogrecord', {'contenttypeslug': contenttype_slug, 'contentid': content_id})) }}
+        {{ render(path('changelogrecord', {'contenttype': contenttype_slug, 'contentid': content_id})) }}
     {% endif %}
 {% endmacro %}
