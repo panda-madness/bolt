@@ -242,7 +242,13 @@ class RecordChangeHandler extends AbstractProcessingHandler
             } else {
                 $r = $b[$k];
             }
-            if ($l != $r) {
+
+            // If the values are strings, compare them by (naievely) ignoring whitespace
+            if (is_string($l) && is_string($r)) {
+                if (preg_replace('/\s+/', '', $l) != preg_replace('/\s+/', '', $r)) {
+                    $result[] = [$k, $l, $r];
+                }
+            } elseif ($l != $r) {
                 $result[] = [$k, $l, $r];
             }
         }
