@@ -46,7 +46,6 @@
                         <th>ID</th>
                         <th class="col-sm-2">Title</th>
                         <th class="col-sm-3">Changed Fields</th>
-                        <th class="col-sm-3">Editor's Comment</th>
                         <th class="col-sm-1">User</th>
                         <th class="col-sm-1">Date</th>
                     </tr>
@@ -71,9 +70,6 @@
                         </td>
                         <td>
                             {{ entry.diff|keys|join(', ') }}
-                        </td>
-                        <td>
-                            {{ entry.comment|default('') }}
                         </td>
                         <td>
                             <em>{{ macro.userlink(entry.ownerid) }}</em>
