@@ -255,8 +255,8 @@ class LogChange extends Entity
     {
         return [
             'type'   => $fields[$key]['type'],
-            'before' => ['render' => Json::parse($value[0])],
-            'after'  => ['render' => Json::parse($value[1])],
+            'before' => ['render' => $value[0]],
+            'after'  => ['render' => $value[1]],
         ];
     }
 
@@ -271,25 +271,25 @@ class LogChange extends Entity
      */
     private function fieldGeolocation($key, $value, array $fields)
     {
-        $before = Json::parse($value[0]);
-        $after = Json::parse($value[1]);
+        $before = $value[0];
+        $after = $value[1];
 
         return [
             'type'   => $fields[$key]['type'],
             'before' => [
                 'render' => [
-                    'address'           => $before['address'],
-                    'latitude'          => $before['latitude'],
-                    'longitude'         => $before['longitude'],
-                    'formatted_address' => $before['formatted_address'],
+                    'address'           => isset($before['address']) ? : '',
+                    'latitude'          => isset($before['latitude']) ? $before['latitude'] : '',
+                    'longitude'         => isset($before['longitude']) ? $before['longitude'] : '',
+                    'formatted_address' => isset($before['formatted_address']) ? $before['formatted_address'] : '',
                 ],
             ],
             'after'  => [
                 'render' => [
-                    'address'           => $after['address'],
-                    'latitude'          => $after['latitude'],
-                    'longitude'         => $after['longitude'],
-                    'formatted_address' => $after['formatted_address'],
+                    'address'           => isset($after['address']) ? $after['address'] : '',
+                    'latitude'          => isset($after['latitude']) ? $after['latitude'] : '',
+                    'longitude'         => isset($after['longitude']) ? $after['longitude'] : '',
+                    'formatted_address' => isset($after['formatted_address']) ? $after['formatted_address'] : '',
                 ],
             ],
         ];
@@ -306,21 +306,21 @@ class LogChange extends Entity
      */
     private function fieldImage($key, $value, array $fields)
     {
-        $before = Json::parse($value[0]);
-        $after = Json::parse($value[1]);
+        $before = $value[0];
+        $after = $value[1];
 
         return [
             'type'   => $fields[$key]['type'],
             'before' => [
                 'render' => [
                     'file'  => $before['file'],
-                    'title' => $before['title'],
+                    'title' => isset($before['title']) ? $before['title'] : '',
                 ],
             ],
             'after'  => [
                 'render' => [
                     'file'  => $after['file'],
-                    'title' => $after['title'],
+                    'title' => isset($after['title']) ? $after['title'] : '',
                 ],
             ],
         ];
@@ -382,13 +382,8 @@ class LogChange extends Entity
      */
     private function fieldSelect($key, $value, array $fields)
     {
-        if (isset($fields[$key]['multiple']) && $fields[$key]['multiple']) {
-            $before = $value[0];
-            $after = $value[1];
-        } else {
-            $before = $value[0];
-            $after = $value[1];
-        }
+        $before = $value[0];
+        $after = $value[1];
 
         return [
             'type'   => $fields[$key]['type'],
@@ -408,8 +403,8 @@ class LogChange extends Entity
      */
     private function fieldVideo($key, $value, array $fields)
     {
-        $before = Json::parse($value[0]);
-        $after = Json::parse($value[1]);
+        $before = $value[0];
+        $after = $value[1];
 
         return [
             'type'   => $fields[$key]['type'],
