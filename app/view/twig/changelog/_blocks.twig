@@ -186,6 +186,25 @@
                                 </div>
                                 <div class="hidden video" id="{{ key }}">{{ field.after.html|raw }}</div>
                             </td>
+                        {% elseif field.type == 'other' %}
+                                <td class="change-log-item">
+                                    {% if field.before is json %}
+                                        {% for key, value in field.before|json_decode %}
+                                            <strong>{{ key }}: </strong> {{ value|join() }}
+                                        {% endfor %}
+                                    {% else %}
+                                        {{ field.before }}
+                                    {% endif %}
+                                </td>
+                                <td class="change-log-item">
+                                    {% if field.after is json %}
+                                        {% for key, value in field.after|json_decode %}
+                                            <strong>{{ key }}: </strong> {{ value|join() }}<br>
+                                        {% endfor %}
+                                    {% else %}
+                                        {{ field.after }}
+                                    {% endif %}
+                                </td>
                         {% else %}
                             <td class="change-log-item">
                                 <em>Changes for field <code>{{ field.type }}</code> can not be shown.</em>

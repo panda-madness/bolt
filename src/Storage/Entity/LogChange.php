@@ -186,19 +186,30 @@ class LogChange extends Entity
         $fields = Bag::from($contentType['fields']);
 
         foreach ($this->diff as $key => $value) {
-            if (!$fields->get($key)) {
+            if (in_array($key, ['content_edit'])) {
                 continue;
             }
 
-            $type = $fields->get($key)['type'];
+            if ($fields->get($key, null)) {
+                $type = $fields->get($key)['type'];
+                $label = empty($fields[$key]['label']) ? $key : $fields[$key]['label'];
+            } else {
+                $type = 'other';
+                if (!is_string($value[0])) {
+                    $value[0] = json_encode($value[0]);
+                }
+                if (!is_string($value[1])) {
+                    $value[1] = json_encode($value[1]);
+                }
+                $label = $key;
+            }
+
             $changedFields[$key] = [
                 'type'   => $type,
-                'label'  => empty($fields[$key]['label']) ? $key : $fields[$key]['label'],
+                'label'  => $label,
                 'before' => $value[0],
                 'after'  => $value[1],
             ];
-
-            $changedFields[$key] = array_merge($changedFields[$key], $this->fieldValues($key, $value, $fields));
         }
 
         return $changedFields;
