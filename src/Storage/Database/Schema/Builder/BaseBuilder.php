@@ -19,7 +19,7 @@ abstract class BaseBuilder
     protected $connection;
     /** @var \Bolt\Storage\Database\Schema\Manager */
     protected $manager;
-    /** @var \Pimple */
+    /** @var \Pimple\Container */
     protected $tables;
     /** @var string */
     protected $charset;
@@ -33,15 +33,15 @@ abstract class BaseBuilder
     /**
      * Constructor.
      *
-     * @param Connection           $connection
-     * @param Manager              $manager
-     * @param Pimple               $tables
-     * @param string               $charset
-     * @param string               $collate
-     * @param LoggerInterface      $systemLog
+     * @param Connection $connection
+     * @param Manager $manager
+     * @param \Pimple\Container $tables
+     * @param string $charset
+     * @param string $collate
+     * @param LoggerInterface $systemLog
      * @param FlashLoggerInterface $flashLogger
      */
-    public function __construct(Connection $connection, Manager $manager, Pimple $tables, $charset, $collate, LoggerInterface $systemLog, FlashLoggerInterface $flashLogger)
+    public function __construct(Connection $connection, Manager $manager, Pimple\Container $tables, $charset, $collate, LoggerInterface $systemLog, FlashLoggerInterface $flashLogger)
     {
         $this->connection = $connection;
         $this->manager = $manager;

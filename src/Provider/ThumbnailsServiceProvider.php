@@ -107,6 +107,7 @@ class ThumbnailsServiceProvider implements ServiceProviderInterface, BootablePro
      */
     public function boot(Application $app)
     {
+        return;
         $app['dispatcher']->addListener(ControllerEvents::MOUNT, function (MountEvent $event) {
             $app = $event->getApp();
             $event->mount($app['controller.thumbnails.mount_prefix'], $app['controller.thumbnails']);
