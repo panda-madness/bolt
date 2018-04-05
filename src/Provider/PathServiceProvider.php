@@ -8,66 +8,59 @@ use Bolt\Configuration\PathResolverFactory;
 use Bolt\Configuration\ResourceManager;
 use Bolt\Helpers\Deprecated;
 use Eloquent\Pathogen\FileSystem\Factory\PlatformFileSystemPathFactory;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
-class PathServiceProvider implements ServiceProviderInterface
+class PathServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
     private $deprecatedResources = false;
 
-    public function register(Application $app)
+    public function register(Container $app)
     {
         // @deprecated
         if (!isset($app['path_resolver_factory'])) {
-            $app['path_resolver_factory'] = $app->share(
-                function ($app) {
-                    return (new PathResolverFactory())
-                        ->setRootPath($app['path_resolver.root'])
-                        ->addPaths($app['path_resolver.paths'])
+            $app['path_resolver_factory'] = function ($app) {
+                return (new PathResolverFactory())
+                    ->setRootPath($app['path_resolver.root'])
+                    ->addPaths($app['path_resolver.paths'])
                     ;
-                }
-            );
+            };
         }
 
-        $app['path_resolver'] = $app->share(
-            function ($app) {
-                $resolver = $app['path_resolver_factory']
-                    ->addPaths($app['path_resolver.paths'])
-                    ->create()
-                ;
+        $app['path_resolver'] = function ($app) {
+            $resolver = $app['path_resolver_factory']
+                ->addPaths($app['path_resolver.paths'])
+                ->create()
+            ;
 
-                // Bolt's project directory. Not configurable.
-                $resolver->define('bolt', __DIR__ . '/../../');
+            // Bolt's project directory. Not configurable.
+            $resolver->define('bolt', __DIR__ . '/../../');
 
-                return $resolver;
-            }
-        );
+            return $resolver;
+        };
+
         $app['path_resolver.root'] = '';
         $app['path_resolver.paths'] = [];
 
-        $app['pathmanager'] = $app->share(
-            function () {
-                Deprecated::service('pathmanager', 3.3, 'filesystem');
+        $app['pathmanager'] = function () {
+            Deprecated::service('pathmanager', 3.3, 'filesystem');
 
-                $filesystempath = new PlatformFileSystemPathFactory();
-
-                return $filesystempath;
-            }
-        );
+            return new PlatformFileSystemPathFactory();
+        };
 
         if (!isset($app['resources'])) {
-            $app['resources'] = $app->share(
-                function ($app) {
-                    $resources = new ForwardToPathResolver(new \ArrayObject([
-                        'rootpath'              => $app['path_resolver.root'],
-                        'path_resolver'         => $app['path_resolver'],
-                        'path_resolver_factory' => $app['path_resolver_factory'],
-                        'pathmanager'           => new PlatformFileSystemPathFactory(), // Created here so we don't trigger false positive warning
-                    ]));
+            $app['resources'] = function ($app) {
+                $resources = new ForwardToPathResolver(new \ArrayObject([
+                    'rootpath'              => $app['path_resolver.root'],
+                    'path_resolver'         => $app['path_resolver'],
+                    'path_resolver_factory' => $app['path_resolver_factory'],
+                    'pathmanager'           => new PlatformFileSystemPathFactory(), // Created here so we don't trigger false positive warning
+                ]));
 
-                    return $resources;
-                }
-            );
+                return $resources;
+            };
         }
 
         $resourcesSetup = function (ResourceManager $resources) use ($app) {
@@ -85,31 +78,29 @@ class PathServiceProvider implements ServiceProviderInterface
 
             $resourcesSetup($resources);
         } else {
-            $app['resources'] = $app->share(
-                $app->extend(
-                    'resources',
-                    function ($resources) use ($resourcesSetup) {
-                        Deprecated::service('resources', 3.3);
+            $app['resources'] = $app->extend(
+                'resources',
+                function ($resources) use ($resourcesSetup) {
+                    Deprecated::service('resources', 3.3);
 
-                        $resourcesSetup($resources);
+                    $resourcesSetup($resources);
 
-                        return $resources;
-                    }
-                )
+                    return $resources;
+                }
             );
         }
 
-        $app['classloader'] = $app->share(function ($app) {
+        $app['classloader'] = function ($app) {
             Deprecated::service('classloader', 3.3);
 
             return $app['resources']->getClassLoader();
-        });
+        };
 
-        $app['paths'] = $app->share(function ($app) {
+        $app['paths'] = function ($app) {
             return new LazyPathsProxy(function () use ($app) {
                 return $app['resources'];
             });
-        });
+        };
     }
 
     public function boot(Application $app)

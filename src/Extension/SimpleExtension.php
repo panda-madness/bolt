@@ -3,8 +3,9 @@
 namespace Bolt\Extension;
 
 use Bolt\Events\ControllerEvents;
+use Pimple\Container;
+use Pimple\ServiceProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
@@ -27,7 +28,7 @@ abstract class SimpleExtension extends AbstractExtension implements ServiceProvi
     /**
      * {@inheritdoc}
      */
-    final public function register(Application $app)
+    final public function register(Container $app)
     {
         $this->extendConfigService();
         $this->extendTwigService();

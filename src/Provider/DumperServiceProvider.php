@@ -4,8 +4,10 @@ namespace Bolt\Provider;
 
 use Bolt\Debug\Caster;
 use Bolt\Twig\ArrayAccessSecurityProxy;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 use Symfony\Component\VarDumper\Cloner\VarCloner;
 use Symfony\Component\VarDumper\Dumper\CliDumper;
 use Symfony\Component\VarDumper\Dumper\HtmlDumper;
@@ -16,12 +18,12 @@ use Symfony\Component\VarDumper\VarDumper;
  *
  * @author Carson Full <carsonfull@gmail.com>
  */
-class DumperServiceProvider implements ServiceProviderInterface
+class DumperServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function register(Application $app)
+    public function register(Container $app)
     {
         $app['dump'] = $app->protect(
             function ($var) use ($app) {
@@ -43,34 +45,26 @@ class DumperServiceProvider implements ServiceProviderInterface
             }
         );
 
-        $app['dumper'] = $app->share(
-            function ($app) {
-                return PHP_SAPI === 'cli' ? $app['dumper.cli'] : $app['dumper.html'];
-            }
-        );
+        $app['dumper'] = function ($app) {
+            return PHP_SAPI === 'cli' ? $app['dumper.cli'] : $app['dumper.html'];
+        };
 
-        $app['dumper.cli'] = $app->share(
-            function () {
-                return new CliDumper();
-            }
-        );
+        $app['dumper.cli'] = function () {
+            return new CliDumper();
+        };
 
-        $app['dumper.html'] = $app->share(
-            function () {
-                return new HtmlDumper();
-            }
-        );
+        $app['dumper.html'] = function () {
+            return new HtmlDumper();
+        };
 
-        $app['dumper.cloner'] = $app->share(
-            function () {
-                $cloner = new VarCloner();
-                $cloner->addCasters(Caster\FilesystemCasters::getCasters());
+        $app['dumper.cloner'] = function () {
+            $cloner = new VarCloner();
+            $cloner->addCasters(Caster\FilesystemCasters::getCasters());
 
-                ArrayAccessSecurityProxy::registerCaster($cloner);
+            ArrayAccessSecurityProxy::registerCaster($cloner);
 
-                return $cloner;
-            }
-        );
+            return $cloner;
+        };
     }
 
     /**

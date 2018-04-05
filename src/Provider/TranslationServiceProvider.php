@@ -3,14 +3,16 @@
 namespace Bolt\Provider;
 
 use Bolt\Common\Thrower;
+use Pimple\Container;
 use Silex;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 use Symfony\Component\Translation\Loader as TranslationLoader;
 
-class TranslationServiceProvider implements ServiceProviderInterface
+class TranslationServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
         if (!isset($app['translator'])) {
             $app->register(
@@ -21,50 +23,45 @@ class TranslationServiceProvider implements ServiceProviderInterface
             );
         }
 
-        $previousLocale = $app->raw('locale');
-        $app['locale'] = $app->share(function ($app) use ($previousLocale) {
+//        $previousLocale = $app->raw('locale');
+
+        $app['locale'] = function ($app) {
             if (($locales = $app['config']->get('general/locale')) !== null) {
                 $locales = (array) $locales;
 
                 return reset($locales);
             }
-
-            return $previousLocale;
-        });
-
-        $app['translator.caching'] = function ($app) {
-            return (bool) $app['config']->get('general/caching/translations');
         };
 
-        $app['translator.cache_dir'] = $app->share(function ($app) {
+        $app['translator.caching'] = $app->factory(function ($app) {
+            return (bool) $app['config']->get('general/caching/translations');
+        });
+
+        $app['translator.cache_dir'] = function ($app) {
             if ($app['translator.caching'] === false) {
                 return null;
             }
 
             return $app['path_resolver']->resolve('%cache%/trans');
-        });
+        };
 
-        $app['translator'] = $app->share(
-            $app->extend(
-                'translator',
-                function ($translator, $app) {
-                    foreach ($app['translator.loaders'] as $format => $loader) {
-                        $translator->addLoader($format, $loader);
-                    }
-
-                    return $translator;
+        $app['translator'] = $app->extend(
+            'translator',
+            function ($translator, $app) {
+                foreach ($app['translator.loaders'] as $format => $loader) {
+                    $translator->addLoader($format, $loader);
                 }
-            )
-        );
 
-        $app['translator.loaders'] = $app->share(
-            function () {
-                return [
-                    'yml' => new TranslationLoader\YamlFileLoader(),
-                    'xlf' => new TranslationLoader\XliffFileLoader(),
-                ];
+                return $translator;
             }
         );
+
+        $app['translator.loaders'] = function () {
+            return [
+                'yml' => new TranslationLoader\YamlFileLoader(),
+                'xlf' => new TranslationLoader\XliffFileLoader(),
+            ];
+        };
 
         $app['translator.resources'] = $app->extend(
             'translator.resources',

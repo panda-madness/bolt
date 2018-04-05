@@ -8,9 +8,11 @@ use Bolt\Configuration\ResourceManager;
 use Bolt\Configuration\Standard;
 use Bolt\Extension\ExtensionInterface;
 use LogicException;
+use Pimple\ServiceProviderInterface;
 use Silex;
 use Symfony\Component\Yaml\Yaml;
 use Webmozart\PathUtil\Path;
+use Pimple\Container;
 
 /**
  * Handles creating the Application with .bolt.[yml|php] configuration.
@@ -49,6 +51,8 @@ class Bootstrap
             'extensions'  => [],
         ];
 
+        $container = new Container();
+
         $rootPath = Path::canonicalize($rootPath);
 
         if (file_exists($rootPath . '/.bolt.yml')) {
@@ -71,7 +75,7 @@ class Bootstrap
             return $config['application'];
         }
 
-        $pathResolverFactoryFactory = \Pimple::share(function () use ($rootPath, $config) {
+        $pathResolverFactoryFactory = $container->factory(function () use ($rootPath, $config) {
             $pathResolverFactory = new PathResolverFactory();
             $pathResolverFactory->setRootPath($rootPath);
             $pathResolverFactory->addPaths((array) $config['paths']);
@@ -80,7 +84,7 @@ class Bootstrap
         });
 
         $resourcesClass = func_num_args() > 1 ? func_get_arg(1) : Standard::class;
-        $resourcesFactory = \Pimple::share(function () use ($config, $resourcesClass, $rootPath, $pathResolverFactoryFactory) {
+        $resourcesFactory = $container->factory(function () use ($config, $resourcesClass, $rootPath, $pathResolverFactoryFactory) {
             // Use resources from config, or instantiate the class based on mapping above.
             if ($config['resources'] instanceof ResourceManager) {
                 $resources = $config['resources'];
@@ -144,10 +148,10 @@ class Bootstrap
                 $service = key($service);
             }
 
-            if (is_string($service) && is_a($service, Silex\ServiceProviderInterface::class, true)) {
+            if (is_string($service) && is_a($service, ServiceProviderInterface::class, true)) {
                 $service = new $service();
             }
-            if ($service instanceof Silex\ServiceProviderInterface) {
+            if ($service instanceof ServiceProviderInterface) {
                 $app->register($service, $params);
             }
         }
@@ -159,30 +163,25 @@ class Bootstrap
             throw new LogicException('Provided application object does not contain an extension service, but extensions are defined in bootstrap.');
         }
 
-        $app['extensions'] = $app->share(
-            $app->extend(
-                'extensions',
-                function ($extensions) use ($config) {
-                    foreach ((array) $config['extensions'] as $extensionClass) {
-                        if (is_string($extensionClass)) {
-                            if (!class_exists($extensionClass)) {
-                                throw new LogicException(sprintf('Extension class name "%s" is defined in .bolt.yml or .bolt.php, but the class name is misspelled or not loadable by Composer.', $extensionClass));
-                            }
-                            if (!is_a($extensionClass, ExtensionInterface::class, true)) {
-                                throw new LogicException(sprintf('Extension class "%s" must implement %s', $extensionClass, ExtensionInterface::class));
-                            }
-                            $extensionClass = new $extensionClass();
-                        }
-                        if (!$extensionClass instanceof ExtensionInterface) {
-                            throw new LogicException(sprintf('Extension class "%s" must be an instance of %s', get_class($extensionClass), ExtensionInterface::class));
-                        }
-                        $extensions->add($extensionClass);
+        $app->extend('extensions', function ($extensions) use ($config) {
+            foreach ((array) $config['extensions'] as $extensionClass) {
+                if (is_string($extensionClass)) {
+                    if (!class_exists($extensionClass)) {
+                        throw new LogicException(sprintf('Extension class name "%s" is defined in .bolt.yml or .bolt.php, but the class name is misspelled or not loadable by Composer.', $extensionClass));
                     }
-
-                    return $extensions;
+                    if (!is_a($extensionClass, ExtensionInterface::class, true)) {
+                        throw new LogicException(sprintf('Extension class "%s" must implement %s', $extensionClass, ExtensionInterface::class));
+                    }
+                    $extensionClass = new $extensionClass();
                 }
-            )
-        );
+                if (!$extensionClass instanceof ExtensionInterface) {
+                    throw new LogicException(sprintf('Extension class "%s" must be an instance of %s', get_class($extensionClass), ExtensionInterface::class));
+                }
+                $extensions->add($extensionClass);
+            }
+
+            return $extensions;
+        });
 
         return $app;
     }

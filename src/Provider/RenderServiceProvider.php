@@ -4,28 +4,26 @@ namespace Bolt\Provider;
 
 use Bolt\Helpers\Deprecated;
 use Bolt\Render;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
-class RenderServiceProvider implements ServiceProviderInterface
+class RenderServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
-        $app['render'] = $app->share(
-            function ($app) {
-                Deprecated::service('render', 3.3, 'twig');
+        $app['render'] = function ($app) {
+            Deprecated::service('render', 3.3, 'twig');
 
-                return new Render($app);
-            }
-        );
+            return new Render($app);
+        };
 
-        $app['safe_render'] = $app->share(
-            function ($app) {
-                Deprecated::service('render', 3.3, 'Use "twig" service with sandbox enabled instead.');
+        $app['safe_render'] = function ($app) {
+            Deprecated::service('render', 3.3, 'Use "twig" service with sandbox enabled instead.');
 
-                return new Render($app, true);
-            }
-        );
+            return new Render($app, true);
+        };
     }
 
     public function boot(Application $app)

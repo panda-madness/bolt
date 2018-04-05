@@ -8,29 +8,29 @@ use Bolt\Menu\Builder;
 use Bolt\Menu\MenuBuilder;
 use Bolt\Menu\MenuEntry;
 use Bolt\Menu\Resolver;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 use Symfony\Component\Stopwatch\Stopwatch;
 
-class MenuServiceProvider implements ServiceProviderInterface
+class MenuServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function register(Application $app)
+    public function register(Container $app)
     {
-        $app['menu'] = $app->share(
-            function ($app) {
-                $builder = new MenuBuilder($app);
+        $app['menu'] = function ($app) {
+            $builder = new MenuBuilder($app);
 
-                return $builder;
-            }
-        );
+            return $builder;
+        };
 
         /**
          * @internal backwards compatibility not guaranteed on this provider presently
          */
-        $app['menu.admin_builder'] = function ($app) {
+        $app['menu.admin_builder'] = $app->factory(function ($app) {
             $baseUrl = '';
             if (($request = $app['request_stack']->getCurrentRequest()) !== null) {
                 $baseUrl = $request->getBasePath();
@@ -47,39 +47,37 @@ class MenuServiceProvider implements ServiceProviderInterface
             $builder->build($rootEntry);
 
             return $rootEntry;
-        };
+        });
 
         /**
          * @internal backwards compatibility not guaranteed on this provider presently
          */
-        $app['menu.admin'] = $app->share(
-            function ($app) {
-                $token = $app['session']->get('authentication');
-                if (!$token instanceof Token) {
-                    return MenuEntry::create('root');
-                }
-                $user = $token->getUser();
-
-                /** @var Stopwatch $watch */
-                $watch = $app['stopwatch'];
-                $rootEntry = $app['menu.admin_builder'];
-                $contentTypes = Bag::from($app['config']->get('contenttypes'));
-
-                // ~ 100 ms
-                $watch->start('menu.resolve.recent');
-                $resolver = new Resolver\RecentlyEdited($app['storage'], $app['markdown']);
-                $resolver->resolve($rootEntry, $contentTypes);
-                $watch->stop('menu.resolve.recent');
-
-                // ~ 20 ms
-                $watch->start('menu.resolve.access');
-                $resolver = new Resolver\Access($app['permissions']);
-                $resolver->resolve($rootEntry, $user);
-                $watch->stop('menu.resolve.access');
-
-                return $rootEntry;
+        $app['menu.admin'] = function ($app) {
+            $token = $app['session']->get('authentication');
+            if (!$token instanceof Token) {
+                return MenuEntry::create('root');
             }
-        );
+            $user = $token->getUser();
+
+            /** @var Stopwatch $watch */
+            $watch = $app['stopwatch'];
+            $rootEntry = $app['menu.admin_builder'];
+            $contentTypes = Bag::from($app['config']->get('contenttypes'));
+
+            // ~ 100 ms
+            $watch->start('menu.resolve.recent');
+            $resolver = new Resolver\RecentlyEdited($app['storage'], $app['markdown']);
+            $resolver->resolve($rootEntry, $contentTypes);
+            $watch->stop('menu.resolve.recent');
+
+            // ~ 20 ms
+            $watch->start('menu.resolve.access');
+            $resolver = new Resolver\Access($app['permissions']);
+            $resolver->resolve($rootEntry, $user);
+            $watch->stop('menu.resolve.access');
+
+            return $rootEntry;
+        };
     }
 
     /**

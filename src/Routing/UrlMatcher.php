@@ -12,7 +12,7 @@ use Symfony\Component\Routing\Exception\ResourceNotFoundException;
  * This additionally checks for a route without a trailing slash and redirects
  * to it.
  */
-class UrlMatcher extends Silex\RedirectableUrlMatcher
+class UrlMatcher extends Silex\Provider\Routing\RedirectableUrlMatcher
 {
     public function match($pathinfo)
     {

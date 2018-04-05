@@ -6,15 +6,17 @@ use Bolt\Profiler\BoltDataCollector;
 use Bolt\Profiler\DatabaseDataCollector;
 use Bolt\Profiler\DebugToolbarEnabler;
 use Doctrine\DBAL\Logging\DebugStack;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
 /**
  * @author Carson Full <carsonfull@gmail.com>
  */
-class ProfilerServiceProvider implements ServiceProviderInterface
+class ProfilerServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
         if (!isset($app['profiler'])) {
             $app->register(
@@ -31,8 +33,7 @@ class ProfilerServiceProvider implements ServiceProviderInterface
 
         $app->register(new DebugToolbarEnabler());
 
-        $app['data_collector.templates'] = $app->share(
-            $app->extend(
+        $app['data_collector.templates'] = $app->extend(
                 'data_collector.templates',
                 function ($templates) {
                     // Set the 'bolt' toolbar item as the first one, and overriding the 'Symfony' one.
@@ -45,39 +46,32 @@ class ProfilerServiceProvider implements ServiceProviderInterface
 
                     return $templates;
                 }
-            )
-        );
+            );
 
-        $app['data_collectors'] = $app->share(
-            $app->extend(
+        $app['data_collectors'] = $app->extend(
                 'data_collectors',
                 function ($collectors, $app) {
                     // @codingStandardsIgnoreStart
-                    $collectors['bolt'] = $app->share(function ($app) { return new BoltDataCollector($app); });
-                    $collectors['db'] = $app->share(function ($app) { return new DatabaseDataCollector($app['db.logger']); });
+                    $collectors['bolt'] = function ($app) { return new BoltDataCollector($app); };
+                    $collectors['db'] = function ($app) { return new DatabaseDataCollector($app['db.logger']); };
                     // @codingStandardsIgnoreEnd
 
                     return $collectors;
                 }
-            )
-        );
+            );
 
-        $app['twig.loader.bolt_filesystem'] = $app->share(
-            $app->extend(
+        $app['twig.loader.bolt_filesystem'] = $app->extend(
                 'twig.loader.bolt_filesystem',
                 function ($filesystem) {
                     $filesystem->addPath('bolt://app/view/toolbar', 'BoltProfiler');
 
                     return $filesystem;
                 }
-            )
-        );
+            );
 
-        $app['db.logger'] = $app->share(
-            function () {
-                return new DebugStack();
-            }
-        );
+        $app['db.logger'] = function () {
+            return new DebugStack();
+        };
 
         $app['editlink'] = null;
         $app['edittitle'] = null;

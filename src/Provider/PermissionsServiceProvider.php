@@ -3,20 +3,20 @@
 namespace Bolt\Provider;
 
 use Bolt\AccessControl\Permissions;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
-class PermissionsServiceProvider implements ServiceProviderInterface
+class PermissionsServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
-        $app['permissions'] = $app->share(
-            function ($app) {
-                $permissions = new Permissions($app);
+        $app['permissions'] = function ($app) {
+            $permissions = new Permissions($app);
 
-                return $permissions;
-            }
-        );
+            return $permissions;
+        };
     }
 
     public function boot(Application $app)

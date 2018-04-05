@@ -10,21 +10,23 @@ use Bolt\Storage\Query\SearchConfig;
 use Bolt\Storage\Query\SearchQuery;
 use Bolt\Storage\Query\SearchWeighter;
 use Bolt\Storage\Query\SelectQuery;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
-class QueryServiceProvider implements ServiceProviderInterface
+class QueryServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
-        $app['query'] = function ($app) {
+        $app['query'] = $app->factory(function ($app) {
             $runner = new Query($app['query.parser']);
             $runner->addScope('frontend', $app['query.scope.frontend']);
 
             return $runner;
-        };
+        });
 
-        $app['query.parser'] = function ($app) {
+        $app['query.parser'] = $app->factory(function ($app) {
             $parser = new ContentQueryParser($app['storage']);
             $parser->addService('select', $app['query.select']);
             $parser->addService('search', $app['query.search']);
@@ -32,37 +34,31 @@ class QueryServiceProvider implements ServiceProviderInterface
             $parser->addService('search_config', $app['query.search_config']);
 
             return $parser;
-        };
+        });
 
-        $app['query.parser.handler'] = function ($app) {
+        $app['query.parser.handler'] = $app->factory(function ($app) {
             return new QueryParameterParser($app['storage']->createExpressionBuilder());
-        };
+        });
 
-        $app['query.select'] = function ($app) {
+        $app['query.select'] = $app->factory(function ($app) {
             return new SelectQuery($app['storage']->createQueryBuilder(), $app['query.parser.handler']);
+        });
+
+        $app['query.scope.frontend'] = function ($app) {
+            return new FrontendQueryScope($app['config']);
         };
 
-        $app['query.scope.frontend'] = $app->share(
-            function ($app) {
-                return new FrontendQueryScope($app['config']);
-            }
-        );
-
-        $app['query.search'] = function ($app) {
+        $app['query.search'] = $app->factory(function ($app) {
             return new SearchQuery($app['storage']->createQueryBuilder(), $app['query.parser.handler'], $app['query.search_config']);
+        });
+
+        $app['query.search_config'] = function ($app) {
+            return new SearchConfig($app['config']);
         };
 
-        $app['query.search_config'] = $app->share(
-            function ($app) {
-                return new SearchConfig($app['config']);
-            }
-        );
-
-        $app['query.search_weighter'] = $app->share(
-            function ($app) {
-                return new SearchWeighter($app['query.search_config']);
-            }
-        );
+        $app['query.search_weighter'] = function ($app) {
+            return new SearchWeighter($app['query.search_config']);
+        };
     }
 
     public function boot(Application $app)

@@ -5,50 +5,46 @@ namespace Bolt\Provider;
 use Bolt\Embed\GuzzleDispatcher;
 use Bolt\Embed\Resolver;
 use Embed\Embed;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
 /**
  * Embed service provider.
  *
  * @author Gawain Lynch <gawain.lynch@gmail.com>
  */
-class EmbedServiceProvider implements ServiceProviderInterface
+class EmbedServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
-        $app['embed'] = $app->share(
-            function ($app) {
-                return new Resolver($app['embed.factory']);
-            }
-        );
+        $app['embed'] = function ($app) {
+            return new Resolver($app['embed.factory']);
+        };
 
-        $app['embed.dispatcher'] = $app->share(
-            function ($app) {
-                return new GuzzleDispatcher($app['guzzle.client'], $app['guzzle.handler_stack']);
-            }
-        );
+        $app['embed.dispatcher'] = function ($app) {
+            return new GuzzleDispatcher($app['guzzle.client'], $app['guzzle.handler_stack']);
+        };
 
-        $app['embed.factory.config'] = $app->share(
-            function ($app) {
-                return [
-                    'min_image_width'     => 60,
-                    'min_image_height'    => 60,
-                    'images_blacklist'    => null,
-                    'choose_bigger_image' => false,
-                    'html'                => [
-                        'max_images'      => 10,
-                        'external_images' => false,
-                    ],
-                    'oembed' => [
-                        'parameters' => [],
-                    ],
-                    'google' => [
-                        'key' => $app['config']->get('general/google_api_key'),
-                    ],
-                ];
-            }
-        );
+        $app['embed.factory.config'] = function ($app) {
+            return [
+                'min_image_width' => 60,
+                'min_image_height' => 60,
+                'images_blacklist' => null,
+                'choose_bigger_image' => false,
+                'html' => [
+                    'max_images' => 10,
+                    'external_images' => false,
+                ],
+                'oembed' => [
+                    'parameters' => [],
+                ],
+                'google' => [
+                    'key' => $app['config']->get('general/google_api_key'),
+                ],
+            ];
+        };
 
         $app['embed.factory'] = $app->protect(
             function ($url, $options = []) use ($app) {

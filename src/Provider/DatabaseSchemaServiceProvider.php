@@ -9,210 +9,174 @@ use Bolt\Storage\Database\Schema\LazySchemaManager;
 use Bolt\Storage\Database\Schema\Manager;
 use Bolt\Storage\Database\Schema\Table;
 use Bolt\Storage\Database\Schema\Timer;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
 /**
  * Bolt database storage service provider.
  *
  * @author Gawain Lynch <gawain.lynch@gmail.com>
  */
-class DatabaseSchemaServiceProvider implements ServiceProviderInterface
+class DatabaseSchemaServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
-    public function register(Application $app)
+    public function register(Container $app)
     {
-        $app['schema'] = $app->share(
-            function ($app) {
-                return new Manager($app);
-            }
-        );
-        $app['schema.lazy'] = $app->share(
-            function ($app) {
-                return new LazySchemaManager(
-                    function () use ($app) {
-                        return $app['schema'];
-                    }
-                );
-            }
-        );
+        $app['schema'] = function ($app) {
+            return new Manager($app);
+        };
+        $app['schema.lazy'] = function ($app) {
+            return new LazySchemaManager(
+                function () use ($app) {
+                    return $app['schema'];
+                }
+            );
+        };
 
-        $app['schema.prefix'] = $app->share(
-            function ($app) {
-                $prefix = $app['config']->get('general/database/prefix', 'bolt_');
+        $app['schema.prefix'] = function ($app) {
+            $prefix = $app['config']->get('general/database/prefix', 'bolt_');
 
-                return rtrim($prefix, '_') . '_';
-            }
-        );
+            return rtrim($prefix, '_') . '_';
+        };
 
-        $app['schema.tables_filter'] = function () use ($app) {
+        $app['schema.tables_filter'] = $app->factory(function () use ($app) {
             $prefix = $app['config']->get('general/database/prefix');
 
             return "/^$prefix.+/";
+        });
+
+        $app['schema.charset'] = function ($app) {
+            return $app['config']->get('general/database/charset', 'utf8');
         };
 
-        $app['schema.charset'] = $app->share(
-            function ($app) {
-                return $app['config']->get('general/database/charset', 'utf8');
-            }
-        );
+        $app['schema.collate'] = function ($app) {
+            return $app['config']->get('general/database/collate', 'utf8_unicode_ci');
+        };
 
-        $app['schema.collate'] = $app->share(
-            function ($app) {
-                return $app['config']->get('general/database/collate', 'utf8_unicode_ci');
-            }
-        );
+        $app['integritychecker'] = function ($app) {
+            Deprecated::service('integritychecker', 3.0, 'schema');
 
-        $app['integritychecker'] = $app->share(
-            function ($app) {
-                Deprecated::service('integritychecker', 3.0, 'schema');
-
-                return $app['schema'];
-            }
-        );
+            return $app['schema'];
+        };
 
         // Schemas of the Bolt base tables.
-        $app['schema.base_tables'] = $app->share(
-            function (Application $app) {
-                /** @var \Doctrine\DBAL\Platforms\AbstractPlatform $platform */
-                $platform = $app['db']->getDatabasePlatform();
-                $prefix = $app['schema.prefix'];
+        $app['schema.base_tables'] = function (Application $app) {
+            /** @var \Doctrine\DBAL\Platforms\AbstractPlatform $platform */
+            $platform = $app['db']->getDatabasePlatform();
+            $prefix = $app['schema.prefix'];
 
-                // @codingStandardsIgnoreStart
-                return new \Pimple([
-                    'authtoken'   => $app->share(function () use ($platform, $prefix) { return new Table\AuthToken($platform, $prefix); }),
-                    'cron'        => $app->share(function () use ($platform, $prefix) { return new Table\Cron($platform, $prefix); }),
-                    'field_value' => $app->share(function () use ($platform, $prefix) { return new Table\FieldValue($platform, $prefix); }),
-                    'log_change'  => $app->share(function () use ($platform, $prefix) { return new Table\LogChange($platform, $prefix); }),
-                    'log_system'  => $app->share(function () use ($platform, $prefix) { return new Table\LogSystem($platform, $prefix); }),
-                    'relations'   => $app->share(function () use ($platform, $prefix) { return new Table\Relations($platform, $prefix); }),
-                    'taxonomy'    => $app->share(function () use ($platform, $prefix) { return new Table\Taxonomy($platform, $prefix); }),
-                    'users'       => $app->share(function () use ($platform, $prefix) { return new Table\Users($platform, $prefix); }),
-                ]);
-                // @codingStandardsIgnoreEnd
-            }
-        );
+            // @codingStandardsIgnoreStart
+            return new \Pimple\Container([
+                'authtoken' => function () use ($platform, $prefix) { return new Table\AuthToken($platform, $prefix); },
+                'cron' => function () use ($platform, $prefix) { return new Table\Cron($platform, $prefix); },
+                'field_value' => function () use ($platform, $prefix) { return new Table\FieldValue($platform, $prefix); },
+                'log_change' => function () use ($platform, $prefix) { return new Table\LogChange($platform, $prefix); },
+                'log_system' => function () use ($platform, $prefix) { return new Table\LogSystem($platform, $prefix); },
+                'relations' => function () use ($platform, $prefix) { return new Table\Relations($platform, $prefix); },
+                'taxonomy' => function () use ($platform, $prefix) { return new Table\Taxonomy($platform, $prefix); },
+                'users' => function () use ($platform, $prefix) { return new Table\Users($platform, $prefix); },
+            ]);
+            // @codingStandardsIgnoreEnd
+        };
 
         // Schemas of the ContentType tables
-        $app['schema.content_tables'] = $app->share(
-            function (Application $app) {
-                /** @var \Doctrine\DBAL\Platforms\AbstractPlatform $platform */
-                $platform = $app['db']->getDatabasePlatform();
-                $prefix = $app['schema.prefix'];
+        $app['schema.content_tables'] = function (Application $app) {
+            /** @var \Doctrine\DBAL\Platforms\AbstractPlatform $platform */
+            $platform = $app['db']->getDatabasePlatform();
+            $prefix = $app['schema.prefix'];
 
-                $contentTypes = $app['config']->get('contenttypes');
-                $acne = new \Pimple();
+            $contentTypes = $app['config']->get('contenttypes');
+            $acne = new \Pimple\Container();
 
-                foreach (array_keys($contentTypes) as $contentType) {
-                    $tableName = $contentTypes[$contentType]['tablename'];
-                    $acne[$tableName] = $app->share(
-                        function () use ($platform, $prefix) {
-                            return new Table\ContentType($platform, $prefix);
-                        }
-                    );
-                }
-
-                return $acne;
+            foreach (array_keys($contentTypes) as $contentType) {
+                $tableName = $contentTypes[$contentType]['tablename'];
+                $acne[$tableName] = function () use ($platform, $prefix) {
+                    return new Table\ContentType($platform, $prefix);
+                };
             }
-        );
+
+            return $acne;
+        };
 
         // Schemas (empty) of the extension tables
-        $app['schema.extension_tables'] = $app->share(
-            function (Application $app) {
-                return new \Pimple([]);
-            }
-        );
+        $app['schema.extension_tables'] = function (Application $app) {
+            return new \Pimple\Container([]);
+        };
 
         // Combined schemas of all Bolt tables.
-        $app['schema.tables'] = $app->share(
-            function (Application $app) {
-                $acne = new \Pimple();
+        $app['schema.tables'] = function (Application $app) {
+            $acne = new \Pimple\Container();
 
-                foreach ($app['schema.base_tables']->keys() as $baseName) {
-                    $acne[$baseName] = $app->share(
-                        function () use ($app, $baseName) {
-                            return $app['schema.base_tables'][$baseName];
-                        }
-                    );
-                }
-
-                foreach ($app['schema.content_tables']->keys() as $baseName) {
-                    $acne[$baseName] = $app->share(
-                        function () use ($app, $baseName) {
-                            return $app['schema.content_tables'][$baseName];
-                        }
-                    );
-                }
-
-                foreach ($app['schema.extension_tables']->keys() as $baseName) {
-                    $acne[$baseName] = $app->share(
-                        function () use ($app, $baseName) {
-                            return $app['schema.extension_tables'][$baseName];
-                        }
-                    );
-                }
-
-                return $acne;
+            foreach ($app['schema.base_tables']->keys() as $baseName) {
+                $acne[$baseName] = function () use ($app, $baseName) {
+                    return $app['schema.base_tables'][$baseName];
+                };
             }
-        );
 
-        $app['schema.builder'] = $app->share(
-            function ($app) {
-                return new \Pimple([
-                    'base'       => $app->share(
-                        function () use ($app) {
-                            return new Builder\BaseTables(
-                                $app['db'],
-                                $app['schema'],
-                                $app['schema.base_tables'],
-                                $app['schema.charset'],
-                                $app['schema.collate'],
-                                $app['logger.system'],
-                                $app['logger.flash']
-                            );
-                        }
-                    ),
-                    'content'    => $app->share(
-                        function () use ($app) {
-                            return new Builder\ContentTables(
-                                $app['db'],
-                                $app['schema'],
-                                $app['schema.content_tables'],
-                                $app['schema.charset'],
-                                $app['schema.collate'],
-                                $app['logger.system'],
-                                $app['logger.flash']
-                            );
-                        }
-                    ),
-                    'extensions' => $app->share(
-                        function () use ($app) {
-                            return new Builder\ExtensionTables(
-                                $app['db'],
-                                $app['schema'],
-                                $app['schema.extension_tables'],
-                                $app['schema.charset'],
-                                $app['schema.collate'],
-                                $app['logger.system'],
-                                $app['logger.flash']
-                            );
-                        }
-                    ),
-                ]);
+            foreach ($app['schema.content_tables']->keys() as $baseName) {
+                $acne[$baseName] = function () use ($app, $baseName) {
+                    return $app['schema.content_tables'][$baseName];
+                };
             }
-        );
 
-        $app['schema.timer'] = $app->share(
-            function ($app) {
-                return new Timer($app['filesystem']->getFile('cache://dbcheck.ts'));
+            foreach ($app['schema.extension_tables']->keys() as $baseName) {
+                $acne[$baseName] = function () use ($app, $baseName) {
+                    return $app['schema.extension_tables'][$baseName];
+                };
             }
-        );
+
+            return $acne;
+        };
+
+        $app['schema.builder'] = function ($app) {
+            return new \Pimple\Container([
+                'base' => function () use ($app) {
+                    return new Builder\BaseTables(
+                        $app['db'],
+                        $app['schema'],
+                        $app['schema.base_tables'],
+                        $app['schema.charset'],
+                        $app['schema.collate'],
+                        $app['logger.system'],
+                        $app['logger.flash']
+                    );
+                },
+                'content' => function () use ($app) {
+                    return new Builder\ContentTables(
+                        $app['db'],
+                        $app['schema'],
+                        $app['schema.content_tables'],
+                        $app['schema.charset'],
+                        $app['schema.collate'],
+                        $app['logger.system'],
+                        $app['logger.flash']
+                    );
+                },
+                'extensions' => function () use ($app) {
+                    return new Builder\ExtensionTables(
+                        $app['db'],
+                        $app['schema'],
+                        $app['schema.extension_tables'],
+                        $app['schema.charset'],
+                        $app['schema.collate'],
+                        $app['logger.system'],
+                        $app['logger.flash']
+                    );
+                },
+            ]);
+        };
+
+        $app['schema.timer'] = function ($app) {
+            return new Timer($app['filesystem']->getFile('cache://dbcheck.ts'));
+        };
 
         $app['schema.comparator.factory'] = $app->protect(
             function () use ($app) {
                 $platforms = [
-                    'mysql'      => Comparison\MySql::class,
+                    'mysql' => Comparison\MySql::class,
                     'postgresql' => Comparison\PostgreSql::class,
-                    'sqlite'     => Comparison\Sqlite::class,
+                    'sqlite' => Comparison\Sqlite::class,
                 ];
                 $platformName = $app['db']->getDatabasePlatform()->getName();
 
@@ -220,17 +184,15 @@ class DatabaseSchemaServiceProvider implements ServiceProviderInterface
             }
         );
 
-        $app['schema.comparator'] = $app->share(
-            function ($app) {
-                $comparator = $app['schema.comparator.factory']();
+        $app['schema.comparator'] = function ($app) {
+            $comparator = $app['schema.comparator.factory']();
 
-                return new $comparator(
-                    $app['db'],
-                    $app['schema.prefix'],
-                    $app['logger.system']
-                );
-            }
-        );
+            return new $comparator(
+                $app['db'],
+                $app['schema.prefix'],
+                $app['logger.system']
+            );
+        };
     }
 
     public function boot(Application $app)

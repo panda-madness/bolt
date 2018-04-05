@@ -3,23 +3,25 @@
 namespace Bolt\Provider;
 
 use Bolt\Session\Bridge;
+use Pimple\Container;
+use Silex\Api\BootableProviderInterface;
 use Silex\Application;
-use Silex\ServiceProviderInterface;
+use Pimple\ServiceProviderInterface;
 
 /**
  * Session service provider.
  *
  * @author Carson Full <carsonfull@gmail.com>
  */
-class SessionServiceProvider implements ServiceProviderInterface
+class SessionServiceProvider implements ServiceProviderInterface, BootableProviderInterface
 {
     /**
      * {@inheritdoc}
      */
-    public function register(Application $app)
+    public function register(Container $app)
     {
         if (!isset($app['session'])) {
-            $app->register(new Bridge\Silex1\SessionServiceProvider());
+            $app->register(new Bridge\Silex2\SessionServiceProvider());
         }
 
         $app['session.options'] = function () use ($app) {
@@ -35,20 +37,18 @@ class SessionServiceProvider implements ServiceProviderInterface
             ];
         };
 
-        $app['session.options_bag'] = $app->share(
-            $app->extend(
-                'session.options_bag',
-                function ($options) {
-                    // PHP's native C code accesses filesystem with different permissions than userland code.
-                    // If php.ini is using the default (files) handler, use ours instead to prevent this problem.
-                    if ($options['save_handler'] === 'files') {
-                        $options['save_handler'] = 'filesystem';
-                        $options['save_path'] = 'cache://.sessions';
-                    }
-
-                    return $options;
+        $app['session.options_bag'] = $app->extend(
+            'session.options_bag',
+            function ($options) {
+                // PHP's native C code accesses filesystem with different permissions than userland code.
+                // If php.ini is using the default (files) handler, use ours instead to prevent this problem.
+                if ($options['save_handler'] === 'files') {
+                    $options['save_handler'] = 'filesystem';
+                    $options['save_path'] = 'cache://.sessions';
                 }
-            )
+
+                return $options;
+            }
         );
     }
 

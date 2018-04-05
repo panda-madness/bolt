@@ -11,7 +11,7 @@ use Bolt\Common\Deprecated;
  */
 class CallbackResolver extends \Silex\CallbackResolver
 {
-    /** @var \Pimple $app */
+    /** @var \Pimple\Container $app */
     protected $app;
     /**
      * @deprecated Deprecated since 3.3, to be removed in 4.0.
@@ -29,7 +29,7 @@ class CallbackResolver extends \Silex\CallbackResolver
      *                          Ex: 'Bolt\Controller\Frontend' => 'controller.frontend'
      *                          Deprecated since 3.3, to be removed in 4.0.
      */
-    public function __construct(\Pimple $app, array $classmap)
+    public function __construct(\Pimple\Container $app, array $classmap)
     {
         $this->app = $app;
         $this->classmap = $classmap;
