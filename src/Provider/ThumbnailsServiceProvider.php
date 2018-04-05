@@ -28,8 +28,8 @@ class ThumbnailsServiceProvider implements ServiceProviderInterface, BootablePro
      */
     public function register(Container $app)
     {
-        return;
-
+        /** TODO: Thumbs depends on old Silex API */
+//        return;
         if (!isset($app['thumbnails'])) {
             $app->register(new Thumbs\ServiceProvider());
         }
@@ -107,7 +107,7 @@ class ThumbnailsServiceProvider implements ServiceProviderInterface, BootablePro
      */
     public function boot(Application $app)
     {
-        return;
+//        return;
         $app['dispatcher']->addListener(ControllerEvents::MOUNT, function (MountEvent $event) {
             $app = $event->getApp();
             $event->mount($app['controller.thumbnails.mount_prefix'], $app['controller.thumbnails']);

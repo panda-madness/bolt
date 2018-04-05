@@ -4,7 +4,7 @@ namespace Bolt\Extension;
 
 use Bolt\Common\Str;
 use Bolt\Filesystem\Handler\DirectoryInterface;
-use Pimple as Container;
+use Pimple\Container;
 
 /**
  * Defined some base functionality for extensions.
